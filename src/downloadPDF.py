@@ -1,7 +1,7 @@
 import requests
 
 remote_pdf_url = "https://arxiv.org/pdf/1709.00666.pdf"
-pdf_filename = "ch02-downloaded.pdf"
+pdf_filename = "data/ch02-downloaded.pdf"
 
 response = requests.get(remote_pdf_url)
 

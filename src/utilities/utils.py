@@ -4,15 +4,19 @@ import tiktoken
 from neo4j import GraphDatabase
 from openai import OpenAI
 
+neo4j_user = 'neo4j'
+neo4j_password = 'abcd1234'
+neo4j_URI = 'neo4j://127.0.0.1:7687'
+
 neo4j_driver = GraphDatabase.driver(
-    os.environ.get("NEO4J_URI"),
-    auth=(os.environ.get("NEO4J_USERNAME"), os.environ.get("NEO4J_PASSWORD")),
+    neo4j_URI,
+    auth=(neo4j_user, neo4j_password),
     notifications_min_severity="OFF"
 )
 
-open_ai_client = OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY"),
-)
+# open_ai_client = OpenAI(
+#     api_key=os.environ.get("OPENAI_API_KEY"),
+# )
 
 
 def chunk_text(text, chunk_size, overlap, split_on_whitespace_only=True):
