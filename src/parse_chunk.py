@@ -9,5 +9,4 @@ with pdfplumber.open(pdf_filename) as pdf:
         text += page.extract_text()
 
 chunks = chunk_text(text, 500, 40)
-print(len(chunks))
-print(chunks[0])
+print(f"Document chunked into {len(chunks)} chunks.")
