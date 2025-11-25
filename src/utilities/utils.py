@@ -3,21 +3,23 @@ import os
 import tiktoken
 from neo4j import GraphDatabase
 from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 
-neo4j_user = 'neo4j'
-neo4j_password = 'abcd1234'
-neo4j_URI = 'neo4j://127.0.0.1:7687'
-
-neo4j_driver = GraphDatabase.driver(
-    neo4j_URI,
-    auth=(neo4j_user, neo4j_password),
-    notifications_min_severity="OFF"
+open_ai_client = OpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY"),
 )
 
-# open_ai_client = OpenAI(
-#     api_key=os.environ.get("OPENAI_API_KEY"),
-# )
 
+def get_neo4j_driver():
+    neo4j_user = 'neo4j'
+    neo4j_password = 'abcd1234'
+    neo4j_URI = 'neo4j://127.0.0.1:7687'
+    neo4j_driver = GraphDatabase.driver(
+        neo4j_URI,
+        auth=(neo4j_user, neo4j_password),
+        notifications_min_severity="OFF"
+    )
+    return neo4j_driver
 
 def chunk_text(text, chunk_size, overlap, split_on_whitespace_only=True):
     chunks = []
@@ -55,12 +57,10 @@ def num_tokens_from_string(string: str, model: str = "gpt-4") -> int:
     return num_tokens
 
 
-def embed(texts, model="text-embedding-3-small"):
-    response = open_ai_client.embeddings.create(
-        input=texts,
-        model=model,
-    )
-    return list(map(lambda n: n.embedding, response.data))
+def embed(texts, model=SentenceTransformer('sentence-transformers/all-MiniLM-L12-v2')):
+    embedding = model.encode(texts)
+
+    return list(map(lambda n: n.tolist(), embedding))
 
 
 def chat(messages, model="gpt-4o", temperature=0, config={}):
