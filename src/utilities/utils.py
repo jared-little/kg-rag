@@ -5,6 +5,8 @@ from neo4j import GraphDatabase
 from openai import OpenAI
 from sentence_transformers import SentenceTransformer
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 open_ai_client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
 )

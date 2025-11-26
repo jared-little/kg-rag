@@ -4,8 +4,8 @@ from utilities.utils import chunk_text, embed, get_neo4j_driver
 driver = get_neo4j_driver()
 
 text = ""
-pdf_filename = "data/ch02-downloaded.pdf"
-# pdf_filename = "data/ATL-COM-DAQ-2016-184.pdf"
+# pdf_filename = "data/ch02-downloaded.pdf"
+pdf_filename = "data/ATL-COM-DAQ-2016-184.pdf"
 
 with pdfplumber.open(pdf_filename) as pdf:
     for page in pdf.pages:
@@ -34,3 +34,10 @@ SET c.text = chunk, c.embedding = embedding
 driver.execute_query(cypher_query, chunks=chunks, embeddings=embeddings)
 
 print("Chunks and embeddings have been added to Neo4j.")
+
+# CREATE FULLTEXT INDEX
+try : driver.execute_query("CREATE FULLTEXT INDEX PdfChunkFulltext FOR (c:Chunk) ON EACH [c.text]")
+except: print("Fulltext Index already exists")
+
+print("Fulltext index created (if it did not already exist).")
+
