@@ -6,15 +6,35 @@ import re
 driver = get_neo4j_driver()
 
 
-def split_text_by_titles():
-    """Extracts text from a PDF and splits it into sections based on titles."""
+# def extract_title_from_pdf(pdf_filename):
+#     """Extracts the title from the first page of a PDF file."""
+#     with pdfplumber.open(pdf_filename) as pdf:
+#         title = pdf.metadata.get('Title')
+#         print(f"Extracted title: {title}")
+#     return title
 
+
+def extract_text_from_pdf(pdf_filename):
+    """Extracts text from a PDF file."""
     text = ""
-    # pdf_filename = "data/ch02-downloaded.pdf"
-    pdf_filename = "data/ATL-COM-DAQ-2016-184.pdf"
     with pdfplumber.open(pdf_filename) as pdf:
+        title = pdf.metadata.get('Title')
+        if title is None: title = pdf_filename.split("/")[-1].replace(".pdf", "")
+        print(f"Extracted title: {title}")
         for page in pdf.pages:
             text += page.extract_text()
+    return title, text
+
+
+def split_text_by_titles(pdf_filename="data/ATL-COM-DAQ-2016-184.pdf"):
+    """Extracts text from a PDF and splits it into sections based on titles."""
+
+    # text = ""
+    # with pdfplumber.open(pdf_filename) as pdf:
+    #     for page in pdf.pages:
+    #         text += page.extract_text()
+
+    title, text = extract_text_from_pdf(pdf_filename)
 
     # A regular expression pattern for titles that
     # match lines starting with one or more digits, an optional uppercase letter,
@@ -33,10 +53,10 @@ def split_text_by_titles():
 
     print(f"Total sections found: {len(sections_with_titles)}")
 
-    return sections_with_titles
+    return title, sections_with_titles
 
 
-def store_sections_in_neo4j(sections):
+def store_sections_in_neo4j(title, sections):
     """Stores sections and their chunks in Neo4j.
     Splits sections into parent chunks and child chunks, and stores them in Neo4j with embeddings."""
 
@@ -71,7 +91,7 @@ def store_sections_in_neo4j(sections):
         driver.execute_query(
             cypher_import_query,
             id=str(i),
-            pdf_id="gfex TDR",
+            pdf_id=title,
             parent=chunk,
             children=child_chunks,
             embeddings=embeddings,
@@ -82,58 +102,16 @@ def store_sections_in_neo4j(sections):
     ON c.embedding""")
 
 
-def chunk_pdf():   
-    """Extracts text from a PDF and splits it into chunks."""
-
-    text = ""
-    # pdf_filename = "data/ch02-downloaded.pdf"
-    pdf_filename = "data/ATL-COM-DAQ-2016-184.pdf"
-
-    with pdfplumber.open(pdf_filename) as pdf:
-        for page in pdf.pages:
-            text += page.extract_text()
-
-    chunks = chunk_text(text, 500, 40)
-
-
-def create_embeddings(chunks):
-    """Generates embeddings for text chunks and stores them in Neo4j."""
-    embeddings = embed(chunks)
-
-    # print(f"Generated embeddings for {len(embeddings)} chunks.")
-    # print(f"{len(embeddings)} embeddings of dimension {len(embeddings[0])} each.")
-
-    driver.execute_query("""CREATE VECTOR INDEX pdf IF NOT EXISTS
-    FOR (c:Chunk)
-    ON c.embedding""")
-
-    # Add to neo4j
-    cypher_query = '''
-    WITH $chunks as chunks, range(0, size($chunks)) AS index
-    UNWIND index AS i
-    WITH i, chunks[i] AS chunk, $embeddings[i] AS embedding
-    MERGE (c:Chunk {index: i})
-    SET c.text = chunk, c.embedding = embedding
-    '''
-
-    driver.execute_query(cypher_query, chunks=chunks, embeddings=embeddings)
-
-    print("Chunks and embeddings have been added to Neo4j.")
-
-    # CREATE FULLTEXT INDEX
-    try : driver.execute_query("CREATE FULLTEXT INDEX PdfChunkFulltext FOR (c:Chunk) ON EACH [c.text]")
-    except: print("Fulltext Index already exists")
-
-    print("Fulltext index created (if it did not already exist).")
-
+def main(pdf_list):
+    for pdf in pdf_list:
+        print(f"Processing PDF: {pdf}")
+        title, sections = split_text_by_titles(pdf)
+        store_sections_in_neo4j(title, sections)
 
 if __name__ == "__main__":
+    pdf_list = ["data/ATL-COM-DAQ-2016-184.pdf", "data/ATL-DAQ-PROC-2016-023.pdf"]
 
     start_time = time.time()
-
-    sections = split_text_by_titles()
-    print(f"Number of sections: {len(sections)}")
-    store_sections_in_neo4j(sections)
+    main(pdf_list)
     end_time = time.time()
-
-    print(f"Time taken to split text by titles: {end_time - start_time} seconds")
+    print(f"Time taken to store sections in Neo4j: {end_time - start_time} seconds")
