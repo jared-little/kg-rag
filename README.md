@@ -1,5 +1,5 @@
 # Knowledge Graph RAG (kg-rag)
-
+This is just an ongoing project to build and play with LLMs. It may change frequently.
 A Retrieval-Augmented Generation (RAG) system that uses Neo4j graph database and OpenAI to build a knowledge graph from PDF documents and answer questions using hierarchical retrieval with step-back prompting.
 
 ## Overview
