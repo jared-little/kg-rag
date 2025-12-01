@@ -7,12 +7,17 @@ from sentence_transformers import SentenceTransformer
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-open_ai_client = OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY"),
-)
+
+def get_openai_client():
+    """Initializes and returns an OpenAI client instance."""
+    open_ai_client = OpenAI(
+        api_key=os.environ.get("OPENAI_API_KEY"),
+    )
+    return open_ai_client
 
 
 def get_neo4j_driver():
+    """Initializes and returns a Neo4j driver instance."""
     neo4j_user = 'neo4j'
     neo4j_password = 'abcd1234'
     neo4j_URI = 'neo4j://127.0.0.1:7687'
@@ -23,7 +28,9 @@ def get_neo4j_driver():
     )
     return neo4j_driver
 
+
 def chunk_text(text, chunk_size, overlap, split_on_whitespace_only=True):
+    """Splits text into chunks of specified size with overlap."""
     chunks = []
     index = 0
 
@@ -52,7 +59,7 @@ def chunk_text(text, chunk_size, overlap, split_on_whitespace_only=True):
     return chunks
 
 
-def num_tokens_from_string(string: str, model: str = "gpt-4") -> int:
+def num_tokens_from_string(string: str, model: str = "gpt-4o-mini") -> int:
     """Returns the number of tokens in a text string."""
     encoding = tiktoken.encoding_for_model(model)
     num_tokens = len(encoding.encode(string))
@@ -60,12 +67,15 @@ def num_tokens_from_string(string: str, model: str = "gpt-4") -> int:
 
 
 def embed(texts, model=SentenceTransformer('sentence-transformers/all-MiniLM-L12-v2')):
+    """Generates embeddings for a list of texts."""
     embedding = model.encode(texts)
 
     return list(map(lambda n: n.tolist(), embedding))
 
 
-def chat(messages, model="gpt-4o", temperature=0, config={}):
+def chat(messages, model="gpt-4o-mini", temperature=0, config={}):
+    """Sends a chat completion request to the OpenAI API."""
+    open_ai_client = get_openai_client()
     response = open_ai_client.chat.completions.create(
         model=model,
         temperature=temperature,
@@ -75,7 +85,9 @@ def chat(messages, model="gpt-4o", temperature=0, config={}):
     return response.choices[0].message.content
 
 
-def tool_choice(messages, model="gpt-4o", temperature=0, tools=[], config={}):
+def tool_choice(messages, model="gpt-4o-mini", temperature=0, tools=[], config={}):
+    """Sends a chat completion request with tool calls to the OpenAI API."""
+    open_ai_client = get_openai_client()
     response = open_ai_client.chat.completions.create(
         model=model,
         temperature=temperature,

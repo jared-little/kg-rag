@@ -1,65 +1,82 @@
-from utilities.utils import chunk_text, embed, get_neo4j_driver, open_ai_client
+from utilities.utils import chunk_text, embed, get_neo4j_driver, get_openai_client, chat
+from typing import List
 
 
-def AskQuestion(question):
-
-    driver = get_neo4j_driver()
-    records, _, _ = driver.execute_query("MATCH (c:Chunk) WHERE c.index = 0 RETURN c.embedding, c.text")
-    question_embedding = embed([question])[0]
-
-    system_message = "You're an expert but can only use the provided documents to respond to the questions."
-
-    hybrid_query = '''
-    CALL {
-        // vector index
-        CALL db.index.vector.queryNodes('pdf', $k, $question_embedding) YIELD node, score
-        WITH collect({node:node, score:score}) AS nodes, max(score) AS max
-        UNWIND nodes AS n
-        // Normalize scores
-        RETURN n.node AS node, (n.score / max) AS score
-        UNION
-        // keyword index
-        CALL db.index.fulltext.queryNodes('PdfChunkFulltext', $question, {limit: $k})
-        YIELD node, score
-        WITH collect({node:node, score:score}) AS nodes, max(score) AS max
-        UNWIND nodes AS n
-        // Normalize scores
-        RETURN n.node AS node, (n.score / max) AS score
-    }
-    // deduplicate results from both queries
-    WITH node, max(score) AS score ORDER BY score DESC LIMIT $k
-    RETURN node, score
-    '''
-    similar_hybrid_records, _, _ = driver.execute_query(hybrid_query, question_embedding=question_embedding, question=question, k=4)
-
+def generate_answer(question: str, documents: List[str]) -> str:
+    """Generates an answer to a question using provided documents."""
+    answer_system_message = "You're an expert, but can only use the provided documents to respond to the questions."
     user_message = f"""
     Use the following documents to answer the question that will follow:
-    {[doc["node"]["text"] for doc in similar_hybrid_records]}
+    {documents}
 
     ---
 
     The question to answer using information only from the above documents: {question}
     """
-
-    print("Question:", question)
-
-    stream = open_ai_client.chat.completions.create(
-        model="gpt-4o-mini",
+    result = chat(
         messages=[
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": user_message}
-        ],
-        stream=True,
+            {"role": "system", "content": answer_system_message},
+            {"role": "user", "content": user_message},
+        ]
+    )
+    print("Response:", result)
+
+
+def parent_retrieval(question: str, k: int = 4) -> List[str]:
+    """Retrieves the most relevant parent chunks from Neo4j based on the question."""
+    driver = get_neo4j_driver()
+    retrieval_query = """
+    CALL db.index.vector.queryNodes($index_name, $k * 4, $question_embedding)
+    YIELD node, score
+    MATCH (node)<-[:HAS_CHILD]-(parent)
+    WITH parent, max(score) AS score
+    RETURN parent.text AS text, score
+    ORDER BY score DESC
+    LIMIT toInteger($k)
+    """
+
+    question_embedding = embed([question])[0]
+    index_name = "parent"
+    similar_records, _, _ = driver.execute_query(
+        retrieval_query,
+        question_embedding=question_embedding,
+        k=k,
+        index_name=index_name,
     )
 
-    answer = ""
-    for chunk in stream:
-        answer += chunk.choices[0].delta.content or ""
+    return [record["text"] for record in similar_records]
 
-    print(answer)
+
+def generate_stepback(question: str):
+    stepback_system_message = """
+        You are an expert at world knowledge. Your task is to step back
+        and paraphrase a question to a more generic step-back question, which
+        is easier to answer. Here are a few examples
+
+        "input": "Could the members of The Police perform lawful arrests?"
+        "output": "what can the members of The Police do?"
+
+        "input": "Jan Sindel’s was born in what country?"
+        "output": "what is Jan Sindel’s personal history?"
+        """
+    user_message = f"""{question}"""
+    step_back_question = chat(
+        messages=[
+            {"role": "system", "content": stepback_system_message},
+            {"role": "user", "content": user_message},
+        ]
+    )
+    return step_back_question
+
+
+def rag_pipeline(question: str) -> str:
+    stepback_prompt = generate_stepback(question)
+    print(f"Stepback prompt: {stepback_prompt}")
+    documents = parent_retrieval(stepback_prompt)
+    answer = generate_answer(question, documents)
     return answer
 
 
 if __name__ == "__main__":
-    AskQuestion("What is gfex?")
-    # AskQuestion("Is gfex an acronym?")
+
+    rag_pipeline("What is gfex?")
