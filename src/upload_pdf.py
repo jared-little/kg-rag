@@ -6,14 +6,6 @@ import re
 driver = get_neo4j_driver()
 
 
-# def extract_title_from_pdf(pdf_filename):
-#     """Extracts the title from the first page of a PDF file."""
-#     with pdfplumber.open(pdf_filename) as pdf:
-#         title = pdf.metadata.get('Title')
-#         print(f"Extracted title: {title}")
-#     return title
-
-
 def extract_text_from_pdf(pdf_filename):
     """Extracts text from a PDF file."""
     text = ""
