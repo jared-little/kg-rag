@@ -18,9 +18,13 @@ def get_openai_client():
 
 def get_neo4j_driver():
     """Initializes and returns a Neo4j driver instance."""
-    neo4j_user = 'neo4j'
-    neo4j_password = 'abcd1234'
-    neo4j_URI = 'neo4j://127.0.0.1:7687'
+    neo4j_user = os.environ.get('NEO4J_USERNAME')
+    neo4j_password = os.environ.get('NEO4J_PASSWORD')
+    neo4j_URI = os.environ.get('NEO4J_URI')
+    # neo4j_user = 'neo4j'
+    # neo4j_password = 'abcd1234'
+    # neo4j_URI = 'neo4j://127.0.0.1:7687'
+
     neo4j_driver = GraphDatabase.driver(
         neo4j_URI,
         auth=(neo4j_user, neo4j_password),
