@@ -40,32 +40,96 @@ PDF → Extract Text → Split Sections → Parent Chunks → Child Chunks
 
 ## Installation
 
-1. Clone the repository:
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/jared-little/kg-rag.git
 cd kg-rag
 ```
 
-2. Install dependencies:
+### 2. Set Up Python Environment
+
+It's recommended to use a virtual environment:
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+# venv\Scripts\activate
+```
+
+### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set up environment variables in `dev.env`:
+### 4. Set Up Neo4j
+
+Install and start Neo4j:
+
+**Option A: Using Neo4j Desktop**
+1. Download [Neo4j Desktop](https://neo4j.com/download/)
+2. Create a new project and database
+3. Set password (read from environment) for example:
+    - export NEO4J_URI='neo4j://127.0.0.1:7687'
+    - export NEO4J_USERNAME='neo4j'
+    - export NEO4J_PASSWORD='password'
+4. Start the database
+
+**Option B: Using Docker**
 ```bash
-export OPENAI_API_KEY="your-api-key-here"
+docker run \
+    --name neo4j-kg-rag \
+    -p 7474:7474 -p 7687:7687 \
+    -e NEO4J_AUTH=neo4j/abcd1234 \
+    -v $HOME/neo4j/data:/data \
+    neo4j:latest
 ```
 
-Then source the file:
+**Option C: Using Homebrew (macOS)**
 ```bash
+brew install neo4j
+neo4j start
+```
+
+Verify Neo4j is running at: http://localhost:7474
+
+### 5. Configure Environment Variables
+
+Create a `dev.env` file in the project root:
+
+```bash
+# Create dev.env file
+cat > dev.env << 'EOF'
+export OPENAI_API_KEY="your-api-key-here"
+EOF
+
+# Source the environment file
 source dev.env
 ```
 
-4. Configure Neo4j connection in `src/utilities/utils.py`:
+**Note**: Make sure `dev.env` is in your `.gitignore` to avoid committing secrets.
+
+### 6. Configure Neo4j Connection (Optional)
+
+If you're using different Neo4j credentials, update `src/utilities/utils.py`:
+
 ```python
 neo4j_user = 'neo4j'
 neo4j_password = 'your-password'
 neo4j_URI = 'neo4j://127.0.0.1:7687'
+```
+
+### 7. Verify Installation
+
+Test your setup:
+
+```bash
+cd src
+python -c "from utilities.utils import get_neo4j_driver, get_openai_client; print('✓ Setup successful!')"
 ```
 
 ## Usage
